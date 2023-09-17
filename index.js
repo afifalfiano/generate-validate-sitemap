@@ -7,6 +7,7 @@ const options = { compact: true, ignoreComment: true, spaces: 4 };
 let totalData = 0;
 
 
+// Start Generate Sitemap
 
 const collectSitemap = (data = []) => {
     if (data.length > 0) {
@@ -91,4 +92,53 @@ const saveNewSitemap = (xmltext) => {
     });
 }
 
-generateSitemap();
+// End Generate URL
+
+// Start Validate URL 
+const urlStatus = [];
+
+
+function readURLSitemap() {
+    fs.readFile('sitemap.xml', 'utf8', (err, data) => {
+        if (err) {
+            return console.log(err);
+        }
+        const { urlset: { url } } = JSON.parse(convert.xml2json(data, options));
+        url.forEach((item, idx) => {
+            const isValid = isValidUrl(item.loc._text);
+            urlStatus.push({ url: item.loc._text, statusUrl: isValid })
+
+        })
+
+        console.table(urlStatus);
+        writeLog()
+    });
+}
+
+function writeLog() {
+    let data = JSON.stringify(urlStatus, null, 2);
+
+    fs.writeFile('log-sitemap.json', data, (err) => {
+        if (err) throw err;
+        console.log('Data written to file');
+    });
+}
+
+function isValidUrl(urlString) {
+    var urlPattern = new RegExp('^(https?:\\/\\/)?' + // validate protocol
+        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // validate domain name
+        '((\\d{1,3}\\.){3}\\d{1,3}))' + // validate OR ip (v4) address
+        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // validate port and path
+        '(\\?[;&a-z\\d%_.~+=-]*)?' + // validate query string
+        '(\\#[-a-z\\d_]*)?$', 'i'); // validate fragment locator
+    return !!urlPattern.test(urlString);
+}
+
+// End Validate URL
+
+
+
+// Run function to generate sitemap.xml and then check the URL valid or not
+generateSitemap().then(() => {
+    readURLSitemap();
+})
