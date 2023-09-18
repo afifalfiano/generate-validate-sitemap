@@ -36,7 +36,7 @@ const generateSitemap = async () => {
         const initAPI = await fetchData(10, 0);
         totalData = initAPI?.totalPage || 200;
         for (let index = 1; index <= totalData; index++) {
-            callAPI.push(fetchData(10 + 10, 10 + index));
+            callAPI.push(fetchData(10, 10 + index));
         }
         const data = await Promise.all([...callAPI]);
         data.forEach(item => {
@@ -70,6 +70,7 @@ const filterUniqueURLs = () => {
                     });
                 }
             });
+            console.log(existingSitemapList, 'log')
             createSitemapFile(existingSitemapList);
         }
     });
