@@ -19,9 +19,9 @@ const collectSitemap = (data = []) => {
     }
 }
 
-const fetchData = async (paramLimit = 10, paramPage = 0) => {
+const fetchData = async (limit = 10, start = 0) => {
         try {
-            const url = `https://jsonplaceholder.typicode.com/todos?_limit=${paramLimit}&_start=${paramPage}`;
+            const url = `https://jsonplaceholder.typicode.com/todos?_limit=${limit}&_start=${start}`;
             const data = await fetch(url)
             return data.json();
         } catch (error) {
@@ -35,8 +35,8 @@ const generateSitemap = async () => {
         const callAPI = [];
         const initAPI = await fetchData(10, 0);
         totalData = initAPI?.totalPage || 200;
-        for (let index = 1; index <= totalData; index++) {
-            callAPI.push(fetchData(10, 10 + index));
+        for (let index = 0; index <= totalData; index++) {
+            callAPI.push(fetchData(10, index));
         }
         const data = await Promise.all([...callAPI]);
         data.forEach(item => {
@@ -49,6 +49,8 @@ const generateSitemap = async () => {
 }
 
 const filterUniqueURLs = () => {
+    const newDate = new Date();
+    const date = [ newDate.getFullYear(), ('0' + (newDate.getMonth() + 1)).slice(-2), ('0' + newDate.getDate()).slice(-2)].join('-');
     fs.readFile('sitemap.xml', (err, data) => {
         if (data) {
             const existingSitemapList = JSON.parse(convert.xml2json(data, options));
@@ -67,31 +69,33 @@ const filterUniqueURLs = () => {
                         priority: {
                             _text: 0.8
                         },
+                        changefreq: {
+                            _text: 'monthly'
+                        },
+                        lastmod: {
+                            _text: date
+                        }
                     });
                 }
             });
-            console.log(existingSitemapList, 'log')
-            createSitemapFile(existingSitemapList);
+            createAndSaveSitemapFile(existingSitemapList);
         }
     });
 }
 
 
-const createSitemapFile = (list) => {
+const createAndSaveSitemapFile = (list) => {
     const finalXML = convert.json2xml(list, options);
-    saveNewSitemap(finalXML);
-}
-
-
-const saveNewSitemap = (xmltext) => {
-    fs.writeFile('sitemap.xml', xmltext, (err) => {
+    fs.writeFile('sitemap.xml', finalXML, (err) => {
         if (err) {
             return console.log(err);
         }
 
-        console.log("The file was saved!");
+        console.log("Success generate sitemap.xml!");
+        readFileSitemap();
     });
 }
+
 
 // End Generate URL
 
@@ -99,7 +103,7 @@ const saveNewSitemap = (xmltext) => {
 const urlStatus = [];
 
 
-function readURLSitemap() {
+function readFileSitemap() {
     fs.readFile('sitemap.xml', 'utf8', (err, data) => {
         if (err) {
             return console.log(err);
@@ -107,21 +111,26 @@ function readURLSitemap() {
         const { urlset: { url } } = JSON.parse(convert.xml2json(data, options));
         url.forEach((item, idx) => {
             const isValid = isValidUrl(item.loc._text);
-            urlStatus.push({ url: item.loc._text, statusUrl: isValid })
+            const splitUrl = item.loc._text.split('?id=');
+            urlStatus.push({ 
+                url: item.loc._text,
+                id: splitUrl[1],
+                title: splitUrl[0].split(`${hostBaseURL}/`)[1],
+                statusUrl: isValid 
+            })
 
         })
 
-        console.table(urlStatus);
-        writeLog()
+        writeLogSitemap()
     });
 }
 
-function writeLog() {
+function writeLogSitemap() {
     let data = JSON.stringify(urlStatus, null, 2);
 
     fs.writeFile('log-sitemap.json', data, (err) => {
         if (err) throw err;
-        console.log('Data written to file');
+        console.log('Success create log');
     });
 }
 
@@ -140,6 +149,4 @@ function isValidUrl(urlString) {
 
 
 // Run function to generate sitemap.xml and then check the URL valid or not
-generateSitemap().then(() => {
-    readURLSitemap();
-})
+generateSitemap();
